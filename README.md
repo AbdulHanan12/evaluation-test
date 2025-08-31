@@ -154,12 +154,6 @@ The system is designed to be easily extensible:
 3. **Modify search controller** to include new database
 4. **Update views** to handle new country codes
 
-## 🧪 Testing
-
-Run the test suite:
-```bash
-php artisan test
-```
 
 ## 📝 API Endpoints
 
