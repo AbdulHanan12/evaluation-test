@@ -41,29 +41,31 @@ class Company extends Model
         if ($this->country === 'SG') {
             // SG: All reports are available (from any database, but typically from SG)
             // Since SG companies have all reports available, we'll get them from the SG database
-            return \DB::connection('companies_house_sg')
+            $sgConnection = env('DB_SG_CONNECTION_NAME', 'companies_house_sg');
+            return \DB::connection($sgConnection)
                 ->table('reports')
                 ->get()
-                ->map(function ($report) {
+                ->map(function ($report) use ($sgConnection) {
                     $reportObj = new Report();
                     $reportObj->fill((array) $report);
                     $reportObj->id = $report->id; // Explicitly set the ID
-                    $reportObj->setConnection('companies_house_sg');
+                    $reportObj->setConnection($sgConnection);
                     return $reportObj;
                 });
         } elseif ($this->country === 'MX') {
             // MX: Reports based on company's state from report_state table
-            return \DB::connection('companies_house_mx')
+            $mxConnection = env('DB_MX_CONNECTION_NAME', 'companies_house_mx');
+            return \DB::connection($mxConnection)
                 ->table('reports')
                 ->join('report_state', 'reports.id', '=', 'report_state.report_id')
                 ->where('report_state.state_id', $this->state_id)
                 ->select('reports.*', 'report_state.amount as price')
                 ->get()
-                ->map(function ($report) {
+                ->map(function ($report) use ($mxConnection) {
                     $reportObj = new Report();
                     $reportObj->fill((array) $report);
                     $reportObj->id = $report->id; // Explicitly set the ID
-                    $reportObj->setConnection('companies_house_mx');
+                    $reportObj->setConnection($mxConnection);
                     return $reportObj;
                 });
         }
@@ -78,14 +80,16 @@ class Company extends Model
     {
         if ($this->country === 'SG') {
             // SG: Price from reports table
-            $report = \DB::connection('companies_house_sg')
+            $sgConnection = env('DB_SG_CONNECTION_NAME', 'companies_house_sg');
+            $report = \DB::connection($sgConnection)
                 ->table('reports')
                 ->where('id', $reportId)
                 ->first();
             return $report ? $report->price : 0;
         } elseif ($this->country === 'MX') {
             // MX: Price from report_state table
-            $reportState = \DB::connection('companies_house_mx')
+            $mxConnection = env('DB_MX_CONNECTION_NAME', 'companies_house_mx');
+            $reportState = \DB::connection($mxConnection)
                 ->table('report_state')
                 ->where('state_id', $this->state_id)
                 ->where('report_id', $reportId)

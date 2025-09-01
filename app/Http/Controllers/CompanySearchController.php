@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\Company;
+
 use Illuminate\Pipeline\Pipeline;
 
 class CompanySearchController extends Controller
@@ -28,17 +29,20 @@ class CompanySearchController extends Controller
             return view('companies.search', ['companies' => collect()]);
         }
 
+        $sgConnection = env('DB_SG_CONNECTION_NAME', 'companies_house_sg');
+        $mxConnection = env('DB_MX_CONNECTION_NAME', 'companies_house_mx');
+
         $results = app(Pipeline::class)
             ->send(collect())
             ->through([
-                function ($companies) use ($searchTerm) {
+                function ($companies) use ($searchTerm, $sgConnection) {
                     // Singapore DB
-                    $sgCompanies = DB::connection('companies_house_sg')
+                    $sgCompanies = DB::connection($sgConnection)
                         ->table('companies')
                         ->where('name', 'like', "%{$searchTerm}%")
                         ->select('id', 'name', 'registration_number', 'address', 'slug')
                         ->addSelect(DB::raw("'SG' as country"))
-                        ->addSelect(DB::raw("'companies_house_sg' as db_name"))
+                        ->addSelect(DB::raw("'{$sgConnection}' as db_name"))
                         ->limit(50)
                         ->get()
                         ->map(function ($c) {
@@ -56,9 +60,9 @@ class CompanySearchController extends Controller
                     return $companies->merge($sgCompanies);
                 },
 
-                function ($companies) use ($searchTerm) {
+                function ($companies) use ($searchTerm, $mxConnection) {
                     // Mexico DB
-                    $mxCompanies = DB::connection('companies_house_mx')
+                    $mxCompanies = DB::connection($mxConnection)
                         ->table('companies')
                         ->join('states', 'companies.state_id', '=', 'states.id')
                         ->where('companies.name', 'like', "%{$searchTerm}%")
@@ -71,7 +75,7 @@ class CompanySearchController extends Controller
                             'states.name as state_name'
                         )
                         ->addSelect(DB::raw("'MX' as country"))
-                        ->addSelect(DB::raw("'companies_house_mx' as db_name"))
+                        ->addSelect(DB::raw("'{$mxConnection}' as db_name"))
                         ->limit(50)
                         ->get()
                         ->map(function ($c) {
@@ -124,8 +128,11 @@ class CompanySearchController extends Controller
      */
     private function getCompanyFromDatabase($database, $id)
     {
-        if ($database === 'companies_house_sg') {
-            $companyData = DB::connection('companies_house_sg')
+        $sgConnection = env('DB_SG_CONNECTION_NAME', 'companies_house_sg');
+        $mxConnection = env('DB_MX_CONNECTION_NAME', 'companies_house_mx');
+
+        if ($database === $sgConnection) {
+            $companyData = DB::connection($sgConnection)
                 ->table('companies')
                 ->where('id', $id)
                 ->first();
@@ -134,11 +141,11 @@ class CompanySearchController extends Controller
                 $company = new Company();
                 $company->fill((array) $companyData);
                 $company->country = 'SG';
-                $company->setConnection('companies_house_sg');
+                $company->setConnection($sgConnection);
                 return $company;
             }
-        } elseif ($database === 'companies_house_mx') {
-            $companyData = DB::connection('companies_house_mx')
+        } elseif ($database === $mxConnection) {
+            $companyData = DB::connection($mxConnection)
                 ->table('companies')
                 ->join('states', 'companies.state_id', '=', 'states.id')
                 ->where('companies.id', $id)
@@ -150,7 +157,7 @@ class CompanySearchController extends Controller
                 $company->fill((array) $companyData);
                 $company->country = 'MX';
                 $company->state_id = $companyData->state_id;
-                $company->setConnection('companies_house_mx');
+                $company->setConnection($mxConnection);
                 return $company;
             }
         }
@@ -165,9 +172,9 @@ class CompanySearchController extends Controller
     {
         switch (strtoupper($country)) {
             case 'SG':
-                return 'companies_house_sg';
+                return env('DB_SG_CONNECTION_NAME', 'companies_house_sg');
             case 'MX':
-                return 'companies_house_mx';
+                return env('DB_MX_CONNECTION_NAME', 'companies_house_mx');
             default:
                 abort(404, 'Invalid country code');
         }

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+
 class Report extends Model
 {
     protected $fillable = [
@@ -27,7 +28,8 @@ class Report extends Model
             return $this->price;
         } elseif ($company->country === 'MX') {
             // For MX, price comes from report_state table
-            $reportState = \DB::connection('companies_house_mx')
+            $mxConnection = env('DB_MX_CONNECTION_NAME', 'companies_house_mx');
+            $reportState = \DB::connection($mxConnection)
                 ->table('report_state')
                 ->where('state_id', $company->state_id)
                 ->where('report_id', $this->id)
