@@ -186,4 +186,4 @@ For questions or issues:
 
 ---
 
-**Built with ❤️ using Laravel, Blade, and TailwindCSS**
+**Built using Laravel, Blade, and TailwindCSS**
